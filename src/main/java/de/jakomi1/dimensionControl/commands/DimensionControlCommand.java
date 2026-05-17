@@ -1,64 +1,97 @@
 package de.jakomi1.dimensionControl.commands;
 
+import de.jakomi1.dimensionControl.DimensionControl;
+import de.jakomi1.dimensionControl.utils.DimensionUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.*;
-import org.bukkit.command.*;
-import org.bukkit.entity.Entity;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.World;
+import org.bukkit.WorldCreator;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Enumeration;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.SortedSet;
+import java.util.TreeSet;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
-import static de.jakomi1.dimensionControl.DimensionControl.messages;
-import static de.jakomi1.dimensionControl.DimensionControl.plugin;
-
-/**
- * Command executor for dimension control, updated to Adventure API (1.21.4).
- */
 public class DimensionControlCommand implements CommandExecutor, TabCompleter {
-    private List<String> customDimensions = new ArrayList<>();
+
+    private static final String DIM_PREFIX = "CDim-";
+    private static final String PERMISSION_BASE = "dimensioncontrol.dimension.";
+
+    private final JavaPlugin plugin;
+    private final Map<String, String> messages;
+    private final SortedSet<String> customDimensions = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
 
     public DimensionControlCommand() {
-        copyPresetsFromJar();
-        loadCustomDimensions();
-        updateCustomDimensionsList();
+        this(DimensionControl.plugin, DimensionControl.messages);
     }
 
-    private boolean hasDimensionPermission(Player player, String sub) {
-        return player.hasPermission("dimensioncontrol.dimension.*") || player.hasPermission("dimensioncontrol.dimension." + sub);
+    public DimensionControlCommand(JavaPlugin plugin, Map<String, String> messages) {
+        this.plugin = Objects.requireNonNull(plugin, "plugin");
+        this.messages = Objects.requireNonNull(messages, "messages");
+
+        bootstrapPresets();
+        refreshCustomDimensions();
+    }
+
+    private boolean hasDimensionPermission(Player player, String subCommand) {
+        return player.hasPermission(PERMISSION_BASE + "*")
+                || player.hasPermission(PERMISSION_BASE + subCommand);
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (sender instanceof Player player && !hasDimensionPermission(player, args.length > 0 ? args[0].toLowerCase(Locale.ROOT) : "")) {
-            sendFormatted(sender, NamedTextColor.RED, "messages.error.no_perm");
-            return true;
-        }
-        if (args.length < 1) {
+        if (args.length == 0) {
             sendFormatted(sender, NamedTextColor.RED, "messages.usage.general");
             return false;
         }
+
         String action = args[0].toLowerCase(Locale.ROOT);
+
+        if (sender instanceof Player player && !hasDimensionPermission(player, action)) {
+            sendFormatted(sender, NamedTextColor.RED, "messages.error.no_perm");
+            return true;
+        }
+
         switch (action) {
             case "add" -> {
                 if (args.length < 2) {
                     sendFormatted(sender, NamedTextColor.RED, "messages.usage.add");
                     return false;
                 }
+
                 String name = args[1];
-                String preset = args.length >= 3 ? String.join(" ", Arrays.copyOfRange(args, 2, args.length)) : null;
-                return addDimension(sender, name, preset);
+                String presetOrSeed = args.length >= 3 ? String.join(" ", copyOfRange(args, 2, args.length)) : null;
+                return addDimension(sender, name, presetOrSeed);
             }
+
             case "remove" -> {
                 if (args.length < 2) {
                     sendFormatted(sender, NamedTextColor.RED, "messages.usage.remove");
@@ -66,32 +99,35 @@ public class DimensionControlCommand implements CommandExecutor, TabCompleter {
                 }
                 return removeDimension(sender, args[1]);
             }
-            case "teleport" -> {
-                if (args.length < 3) {
-                    sendFormatted(sender, NamedTextColor.RED, "messages.usage.teleport");
-                    return false;
-                }
-                Player target = Bukkit.getPlayer(args[1]);
-                if (target == null) {
-                    sendFormatted(sender, NamedTextColor.RED, "messages.error.dim_not_loaded", args[1]);
-                    return false;
-                }
-                return handleTeleport(sender, target, args);
-            }
-            case "list" -> {
-                listDimensions(sender);
-                return true;
-            }
+
             case "reset" -> {
                 if (args.length < 2) {
                     sendFormatted(sender, NamedTextColor.RED, "messages.usage.reset");
                     return false;
                 }
+
                 String name = args[1];
-                String preset = args.length >= 3 ? String.join(" ", Arrays.copyOfRange(args, 2, args.length)) : null;
+                String presetOrSeed = args.length >= 3 ? String.join(" ", copyOfRange(args, 2, args.length)) : null;
+
                 removeDimension(sender, name);
-                return addDimension(sender, name, preset);
+
+                Bukkit.getScheduler().runTaskLater(plugin, () -> addDimension(sender, name, presetOrSeed), 20L);
+                return true;
             }
+
+            case "teleport" -> {
+                if (args.length < 3) {
+                    sendFormatted(sender, NamedTextColor.RED, "messages.usage.teleport");
+                    return false;
+                }
+                return teleportToDimension(sender, args);
+            }
+
+            case "list" -> {
+                listDimensions(sender);
+                return true;
+            }
+
             default -> {
                 sendFormatted(sender, NamedTextColor.RED, "messages.error.unknown_action");
                 return false;
@@ -99,252 +135,534 @@ public class DimensionControlCommand implements CommandExecutor, TabCompleter {
         }
     }
 
-    private void sendFormatted(CommandSender sender, NamedTextColor color, String key, String... args) {
-        String text = format(key, args);
-        sender.sendMessage(Component.text(text).color(color));
-    }
+    private boolean addDimension(CommandSender sender, String dimensionName, String presetOrSeed) {
+        String fullName = DIM_PREFIX + dimensionName;
 
-    private boolean removeDimension(CommandSender sender, String dimensionName) {
-        String full = "CDim-" + dimensionName;
-        World world = Bukkit.getWorld(full);
-
-        if (world != null) {
-            World overworld = Bukkit.getWorlds().get(0);
-            for (Player player : world.getPlayers()) {
-                int highestY = overworld.getHighestBlockYAt(0, 0);
-                player.teleport(new Location(overworld, 0.5, highestY + 1, 0.5));
-                sendFormatted(player, NamedTextColor.YELLOW, "messages.warn.teleported_player", dimensionName);
-            }
-            Bukkit.unloadWorld(world, false);
-        }
-
-        File dir = new File(Bukkit.getWorldContainer(), full);
-        if (dir.exists()) {
-            deleteDirectory(dir);
-            sendFormatted(sender, NamedTextColor.GREEN, "messages.success.remove", full);
-        } else {
-            sendFormatted(sender, NamedTextColor.GREEN, "messages.success.list_empty");
-        }
-
-        updateCustomDimensionsList();
-        return true;
-    }
-
-    private boolean addDimension(CommandSender sender, String dimensionName, String seedOrPreset) {
-        String full = "CDim-" + dimensionName;
-        File worldFolder = new File(Bukkit.getWorldContainer(), full);
-        if (worldFolder.exists()) {
-            sendFormatted(sender, NamedTextColor.YELLOW, "messages.error.dim_exists", full);
+        if (Bukkit.getWorld(fullName) != null || dimensionExistsOnDisk(fullName)) {
+            sendFormatted(sender, NamedTextColor.YELLOW, "messages.error.dim_exists", fullName);
             return false;
         }
 
-        WorldCreator creator = new WorldCreator(full).environment(World.Environment.NORMAL);
+        if (presetOrSeed == null || presetOrSeed.isBlank()) {
+            long seed = randomSeed();
+            WorldCreator creator = new WorldCreator(fullName)
+                    .environment(World.Environment.NORMAL)
+                    .seed(seed);
 
-        if (seedOrPreset != null) {
-            try {
-                long seed = Long.parseLong(seedOrPreset);
-                creator.seed(seed);
-                sendFormatted(sender, NamedTextColor.GREEN, "messages.success.seed_applied", String.valueOf(seed));
-            } catch (NumberFormatException e) {
-                File presetDir = new File(plugin.getDataFolder(), "presets/" + seedOrPreset);
-                if (presetDir.exists() && presetDir.isDirectory()) {
-                    sendFormatted(sender, NamedTextColor.GREEN, "messages.success.preset_found");
-                    Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-                        try {
-                            String[] toCopy = {"region", "playerdata", "data", "advancements", "stats"};
-                            for (String folderName : toCopy) {
-                                File sourceFolder = new File(presetDir, folderName);
-                                if (sourceFolder.exists()) {
-                                    copyFolder(sourceFolder.toPath(), new File(worldFolder, folderName).toPath());
-                                }
-                            }
-                            File levelDat = new File(presetDir, "level.dat");
-                            if (levelDat.exists()) {
-                                Files.copy(levelDat.toPath(), new File(worldFolder, "level.dat").toPath(), StandardCopyOption.REPLACE_EXISTING);
-                            }
-                            File oldPaper = new File(presetDir, "paper-world.yml");
-                            if (oldPaper.exists()) {
-                                Files.copy(oldPaper.toPath(), new File(worldFolder, "paper-world.yml").toPath(), StandardCopyOption.REPLACE_EXISTING);
-                            }
-                            Bukkit.getScheduler().runTask(plugin, () -> createWorldAsyncSafe(sender, creator, full, worldFolder));
-                        } catch (IOException io) {
-                            sendFormatted(sender, NamedTextColor.RED, "messages.error.copy_error", io.getMessage());
-                        }
-                    });
-                    return true;
-                } else {
-                    sendFormatted(sender, NamedTextColor.YELLOW, "messages.error.preset_not_found", seedOrPreset);
-                }
-            }
+            sendFormatted(sender, NamedTextColor.GREEN, "messages.warn.wait");
+            createWorldSync(sender, creator, fullName, null);
+            return true;
+        }
+
+        Long explicitSeed = tryParseLong(presetOrSeed);
+        if (explicitSeed != null) {
+            WorldCreator creator = new WorldCreator(fullName)
+                    .environment(World.Environment.NORMAL)
+                    .seed(explicitSeed);
+
+            sendFormatted(sender, NamedTextColor.GREEN, "messages.success.seed_applied", String.valueOf(explicitSeed));
+            sendFormatted(sender, NamedTextColor.GREEN, "messages.warn.wait");
+            createWorldSync(sender, creator, fullName, null);
+            return true;
         }
 
         sendFormatted(sender, NamedTextColor.GREEN, "messages.warn.wait");
-        createWorldAsyncSafe(sender, creator, full, worldFolder);
+
+        DimensionControl.dimensionUtils
+                .importPresetAsync(presetOrSeed, fullName)
+                .whenComplete((result, throwable) -> {
+                    if (throwable != null) {
+                        Bukkit.getScheduler().runTask(plugin, () -> {
+                            plugin.getLogger().warning("Preset import failed: " + throwable.getMessage());
+                            sendFormatted(sender, NamedTextColor.RED, "messages.error.copy_error", throwable.getMessage());
+                        });
+                        return;
+                    }
+
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        try {
+                            WorldCreator creator = DimensionControl.dimensionUtils
+                                    .createCreatorFromPreset(fullName, result.metadata());
+
+                            createWorldSync(sender, creator, fullName, result.metadata());
+                        } catch (Exception ex) {
+                            plugin.getLogger().warning("Failed to create preset world '" + fullName + "': " + ex.getMessage());
+                            sendFormatted(sender, NamedTextColor.RED, "messages.error.world_create_fail", fullName);
+                        }
+                    });
+                });
+
         return true;
     }
 
-    private void createWorldAsyncSafe(CommandSender sender, WorldCreator creator, String fullName, File worldFolder) {
-        World world = Bukkit.createWorld(creator);
-        if (world == null) {
+    private void createWorldSync(CommandSender sender, WorldCreator creator, String fullName, DimensionUtils.PresetWorldData data) {
+        try {
+            Path legacy = DimensionControl.dimensionUtils.getLegacyWorldPath(fullName);
+            Path migrated = DimensionControl.dimensionUtils.getMigratedWorldPath(fullName);
+
+            if (Files.exists(legacy) && Files.exists(migrated)) {
+                deleteDirectory(legacy);
+            }
+
+            World world = Bukkit.createWorld(creator);
+            if (world == null) {
+                sendFormatted(sender, NamedTextColor.RED, "messages.error.world_create_fail", fullName);
+                return;
+            }
+
+            if (data != null) {
+                DimensionControl.dimensionUtils.applyPresetMetadata(world, data);
+                world.save();
+            }
+
+            refreshCustomDimensions();
+            sendFormatted(sender, NamedTextColor.GREEN, "messages.success.add", fullName);
+        } catch (Exception ex) {
+            plugin.getLogger().warning("Failed to create world '" + fullName + "': " + ex.getMessage());
             sendFormatted(sender, NamedTextColor.RED, "messages.error.world_create_fail", fullName);
-            return;
         }
-        int y = world.getHighestBlockYAt(0, 0) + 1;
-        world.setSpawnLocation(new Location(world, 0.5, y, 0.5));
-        sendFormatted(sender, NamedTextColor.GREEN, "messages.success.add", fullName);
-        updateCustomDimensionsList();
     }
 
-    private boolean handleTeleport(CommandSender sender, Player target, String[] args) {
-        String dim = args[2];
-        double x = 0.5, y = 100.5, z = 0.5;
-        String dir = null;
-        if (args.length >= 5) {
+    private boolean removeDimension(CommandSender sender, String dimensionName) {
+        String fullName = DIM_PREFIX + dimensionName;
+        World world = Bukkit.getWorld(fullName);
+
+        if (world != null) {
+            World mainWorld = Bukkit.getWorlds().isEmpty() ? null : Bukkit.getWorlds().get(0);
+            if (mainWorld != null) {
+                Location safe = mainWorld.getSpawnLocation().clone().add(0.5, 0.0, 0.5);
+                for (Player player : world.getPlayers()) {
+                    player.teleport(safe);
+                    sendFormatted(player, NamedTextColor.YELLOW, "messages.warn.teleported_player", dimensionName);
+                }
+            }
+
+            Bukkit.unloadWorld(world, false);
+        }
+
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            try {
+                DimensionControl.dimensionUtils.deleteDimensionData(fullName);
+
+                Bukkit.getScheduler().runTask(plugin, () -> {
+                    refreshCustomDimensions();
+                    sendFormatted(sender, NamedTextColor.GREEN, "messages.success.remove", fullName);
+                });
+            } catch (Exception ex) {
+                Bukkit.getScheduler().runTask(plugin, () ->
+                        sendFormatted(sender, NamedTextColor.RED, "messages.error.copy_error", ex.getMessage()));
+            }
+        });
+
+        return true;
+    }
+
+    private boolean teleportToDimension(CommandSender sender, String[] args) {
+        Player target = Bukkit.getPlayerExact(args[1]);
+        if (target == null) {
+            sendFormatted(sender, NamedTextColor.RED, "messages.error.dim_not_loaded", args[1]);
+            return false;
+        }
+
+        String fullName = DIM_PREFIX + args[2];
+        World world = Bukkit.getWorld(fullName);
+        if (world == null) {
+            sendFormatted(sender, NamedTextColor.RED, "messages.error.dim_not_loaded", fullName);
+            listDimensions(sender);
+            return false;
+        }
+
+        Location destination = world.getSpawnLocation().clone();
+
+        if (args.length >= 6) {
+            double x;
+            double y;
+            double z;
             try {
                 x = Double.parseDouble(args[3]);
                 y = Double.parseDouble(args[4]);
                 z = Double.parseDouble(args[5]);
-                dir = args.length == 7 ? args[6].toLowerCase() : null;
-            } catch (NumberFormatException e) {
+            } catch (NumberFormatException ex) {
                 sendFormatted(sender, NamedTextColor.RED, "messages.error.invalid_coords");
                 return false;
             }
-        }
-        String full = "CDim-" + dim;
-        World world = Bukkit.getWorld(full);
-        if (world == null) {
-            sendFormatted(sender, NamedTextColor.RED, "messages.error.dim_not_loaded", full);
-            listDimensions(sender);
-            return false;
-        }
-        Location loc = new Location(world, x, y, z);
-        if (dir != null) switch (dir) {
-            case "north" -> loc.setYaw(180);
-            case "south" -> loc.setYaw(0);
-            case "west" -> loc.setYaw(90);
-            case "east" -> loc.setYaw(-90);
-            default -> {
-                sendFormatted(sender, NamedTextColor.RED, "messages.error.invalid_direction");
-                return false;
+
+            destination = new Location(world, x, y, z);
+
+            if (args.length >= 7) {
+                String direction = args[6].toLowerCase(Locale.ROOT);
+                switch (direction) {
+                    case "north" -> destination.setYaw(180f);
+                    case "south" -> destination.setYaw(0f);
+                    case "west" -> destination.setYaw(90f);
+                    case "east" -> destination.setYaw(-90f);
+                    default -> {
+                        sendFormatted(sender, NamedTextColor.RED, "messages.error.invalid_direction");
+                        return false;
+                    }
+                }
             }
-        };
-        target.teleport(loc);
+        }
+
+        target.teleport(destination);
         return true;
     }
 
     private boolean listDimensions(CommandSender sender) {
-        String joined = String.join(", ", customDimensions);
         if (customDimensions.isEmpty()) {
             sendFormatted(sender, NamedTextColor.GREEN, "messages.success.list_empty");
         } else {
-            sendFormatted(sender, NamedTextColor.GREEN, "messages.success.list", joined);
+            sendFormatted(sender, NamedTextColor.GREEN, "messages.success.list", String.join(", ", customDimensions));
         }
         return true;
     }
 
-    // Helpers: localization, IO, presets, tabs
-    private String format(String key, String... args) {
-        String tpl = messages.getOrDefault(key, key);
-        for (int i = 0; i < args.length; i++) tpl = tpl.replace("{" + i + "}", args[i]);
-        return tpl;
-    }
-
-    private void loadCustomDimensions() {
-        customDimensions = Bukkit.getWorlds().stream()
-                .map(World::getName)
-                .filter(n -> n.startsWith("CDim-"))
-                .map(n -> n.substring(5))
-                .collect(Collectors.toList());
-    }
-
-    private void updateCustomDimensionsList() { loadCustomDimensions(); }
-
-    private void deleteDirectory(File dir) {
-        try {
-            Files.walk(dir.toPath())
-                    .sorted(Comparator.reverseOrder())
-                    .map(Path::toFile)
-                    .forEach(File::delete);
-        } catch (IOException e) {
-            plugin.getLogger().warning(e.getMessage());
+    private void bootstrapPresets() {
+        File presetFolder = new File(plugin.getDataFolder(), "presets");
+        if (!presetFolder.exists() && !presetFolder.mkdirs()) {
+            plugin.getLogger().warning("Konnte Preset-Ordner nicht erstellen: " + presetFolder.getAbsolutePath());
+            return;
         }
+
+        copyJarPresets();
+        extractZipPresets(presetFolder.toPath());
     }
 
-    private void copyFolder(Path src, Path tgt) throws IOException {
-        Files.walk(src).forEach(p -> {
-            try {
-                Path d = tgt.resolve(src.relativize(p));
-                if (Files.isDirectory(p)) Files.createDirectories(d);
-                else Files.copy(p, d, StandardCopyOption.REPLACE_EXISTING);
-            } catch (IOException ex) {
-                throw new RuntimeException(ex);
+    private void copyJarPresets() {
+        try {
+            Path pluginPath = Path.of(plugin.getClass().getProtectionDomain().getCodeSource().getLocation().toURI());
+            if (!Files.isRegularFile(pluginPath)) {
+                return;
             }
-        });
-    }
 
-    private void copyPresetsFromJar() {
-        File presetDir = new File(plugin.getDataFolder(), "presets");
-        if (!presetDir.exists()) presetDir.mkdirs();
-        try (JarFile jar = new JarFile(new File(plugin.getClass().getProtectionDomain()
-                .getCodeSource().getLocation().toURI()))) {
-            Enumeration<JarEntry> entries = jar.entries();
-            while (entries.hasMoreElements()) {
-                JarEntry e = entries.nextElement();
-                if (e.getName().startsWith("presets/") && !e.isDirectory()) {
-                    File out = new File(plugin.getDataFolder(), e.getName());
-                    if (!out.exists()) {
-                        out.getParentFile().mkdirs();
-                        try (InputStream in = plugin.getResource(e.getName().substring(8));
-                             FileOutputStream fos = new FileOutputStream(out)) {
+            try (JarFile jar = new JarFile(pluginPath.toFile())) {
+                Enumeration<JarEntry> entries = jar.entries();
+
+                while (entries.hasMoreElements()) {
+                    JarEntry entry = entries.nextElement();
+                    if (entry.isDirectory() || !entry.getName().startsWith("presets/")) {
+                        continue;
+                    }
+
+                    String resourcePath = entry.getName().substring("presets/".length());
+                    File out = new File(plugin.getDataFolder(), entry.getName());
+
+                    if (resourcePath.toLowerCase(Locale.ROOT).endsWith(".zip")) {
+                        Path temp = Files.createTempFile("dimensioncontrol-preset-", ".zip");
+                        try (InputStream in = plugin.getResource(resourcePath)) {
+                            if (in == null) {
+                                Files.deleteIfExists(temp);
+                                continue;
+                            }
+                            Files.copy(in, temp, StandardCopyOption.REPLACE_EXISTING);
+                        }
+
+                        try {
+                            importZipPreset(
+                                    temp,
+                                    plugin.getDataFolder().toPath().resolve("presets"),
+                                    false
+                            );
+                        } finally {
+                            Files.deleteIfExists(temp);
+                        }
+                        continue;
+                    }
+
+                    out.getParentFile().mkdirs();
+                    try (InputStream in = plugin.getResource(resourcePath)) {
+                        if (in == null) {
+                            continue;
+                        }
+                        try (FileOutputStream fos = new FileOutputStream(out, false)) {
                             in.transferTo(fos);
                         }
                     }
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ex) {
+            plugin.getLogger().warning("Failed copying jar presets: " + ex.getMessage());
+        }
+    }
+
+    private void extractZipPresets(Path presetRoot) {
+        File[] zips = presetRoot.toFile().listFiles(file ->
+                file.isFile() && file.getName().toLowerCase(Locale.ROOT).endsWith(".zip"));
+
+        if (zips == null) {
+            return;
+        }
+
+        for (File zip : zips) {
+            try {
+                importZipPreset(zip.toPath(), presetRoot, true);
+            } catch (Exception ex) {
+                plugin.getLogger().warning("Failed importing zip preset " + zip.getName() + ": " + ex.getMessage());
+            }
+        }
+    }
+
+    private void importZipPreset(Path zipPath, Path presetRoot, boolean deleteSourceAfter) throws IOException {
+        String zipName = stripExtension(zipPath.getFileName().toString());
+
+        try (ZipFile zip = new ZipFile(zipPath.toFile())) {
+            String singleFolder = detectSingleTopLevelFolder(zip);
+            String targetName = singleFolder != null ? singleFolder : zipName;
+
+            Path target = presetRoot.resolve(targetName);
+
+            deleteDirectory(target);
+            Files.createDirectories(target);
+
+            Enumeration<? extends ZipEntry> entries = zip.entries();
+            while (entries.hasMoreElements()) {
+                ZipEntry entry = entries.nextElement();
+                String entryName = normalizeZipEntryName(entry.getName());
+
+                if (entryName.isBlank()) {
+                    continue;
+                }
+
+                String relative = resolveZipEntryName(entryName, singleFolder);
+                if (relative == null || relative.isBlank()) {
+                    continue;
+                }
+
+                Path out = target.resolve(relative).normalize();
+                if (!out.startsWith(target)) {
+                    throw new IOException("Zip Slip");
+                }
+
+                if (entry.isDirectory()) {
+                    Files.createDirectories(out);
+                } else {
+                    Files.createDirectories(Objects.requireNonNull(out.getParent()));
+                    try (InputStream in = zip.getInputStream(entry)) {
+                        Files.copy(in, out, StandardCopyOption.REPLACE_EXISTING);
+                    }
+                }
+            }
+        }
+
+        if (deleteSourceAfter) {
+            Files.deleteIfExists(zipPath);
+        }
+    }
+
+    private String detectSingleTopLevelFolder(ZipFile zip) {
+        String folder = null;
+
+        Enumeration<? extends ZipEntry> entries = zip.entries();
+        while (entries.hasMoreElements()) {
+            ZipEntry entry = entries.nextElement();
+            String name = normalizeZipEntryName(entry.getName());
+
+            if (name.isBlank()) {
+                continue;
+            }
+
+            int slash = name.indexOf('/');
+            if (slash < 0) {
+                return null;
+            }
+
+            String top = name.substring(0, slash);
+
+            if (folder == null) {
+                folder = top;
+            } else if (!folder.equals(top)) {
+                return null;
+            }
+        }
+
+        return folder;
+    }
+
+    private String resolveZipEntryName(String entry, String singleRoot) {
+        if (singleRoot == null) {
+            return entry;
+        }
+
+        String prefix = singleRoot + "/";
+        if (entry.startsWith(prefix)) {
+            return entry.substring(prefix.length());
+        }
+
+        return null;
+    }
+
+    private String normalizeZipEntryName(String name) {
+        String normalized = name.replace('\\', '/');
+        while (normalized.startsWith("./")) {
+            normalized = normalized.substring(2);
+        }
+        return normalized;
+    }
+
+    private void refreshCustomDimensions() {
+        customDimensions.clear();
+        customDimensions.addAll(DimensionControl.dimensionUtils.getCustomDimensions());
+    }
+
+    private boolean dimensionExistsOnDisk(String fullWorldName) {
+        return Files.exists(DimensionControl.dimensionUtils.getLegacyWorldPath(fullWorldName))
+                || Files.exists(DimensionControl.dimensionUtils.getMigratedWorldPath(fullWorldName));
+    }
+
+    private void deleteDirectory(Path dir) throws IOException {
+        if (!Files.exists(dir)) {
+            return;
+        }
+
+        try (Stream<Path> walk = Files.walk(dir)) {
+            walk.sorted(Comparator.reverseOrder())
+                    .forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (IOException ex) {
+                            throw new RuntimeException(ex);
+                        }
+                    });
+        } catch (RuntimeException ex) {
+            if (ex.getCause() instanceof IOException io) {
+                throw io;
+            }
+            throw ex;
+        }
+    }
+
+    private long randomSeed() {
+        return ThreadLocalRandom.current().nextLong();
+    }
+
+    private Long tryParseLong(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        try {
+            return Long.parseLong(value);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private void sendFormatted(CommandSender sender, NamedTextColor color, String key, String... args) {
+        sender.sendMessage(Component.text(format(key, args)).color(color));
+    }
+
+    private String format(String key, String... args) {
+        String template = messages.getOrDefault(key, key);
+        for (int i = 0; i < args.length; i++) {
+            template = template.replace("{" + i + "}", args[i]);
+        }
+        return template;
+    }
+
+    private String[] copyOfRange(String[] source, int from, int to) {
+        if (from >= to) {
+            return new String[0];
+        }
+
+        String[] out = new String[to - from];
+        System.arraycopy(source, from, out, 0, out.length);
+        return out;
+    }
+
+    private String stripExtension(String name) {
+        int dot = name.lastIndexOf('.');
+        return dot > 0 ? name.substring(0, dot) : name;
+    }
+
+    private boolean hasDirectoryContent(Path dir) throws IOException {
+        try (Stream<Path> stream = Files.list(dir)) {
+            return stream.findAny().isPresent();
+        }
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (!(sender instanceof Player player)) return Collections.emptyList();
+        if (!(sender instanceof Player player)) {
+            return List.of();
+        }
 
-        List<String> completions = new ArrayList<>();
+        List<String> out = new ArrayList<>();
 
-        if (args.length == 1) { // "" hier für die Hauptaktion prüfen
-            if (hasDimensionPermission(player,"add")) completions.add("add");
-            if (hasDimensionPermission(player,"remove")) completions.add("remove");
-            if (hasDimensionPermission(player,"teleport")) completions.add("teleport");
-            if (hasDimensionPermission(player,"list")) completions.add("list");
-            if (hasDimensionPermission(player,"reset")) completions.add("reset");
-        } else if (args.length == 2 && !args[0].equalsIgnoreCase("teleport")) {
-            if ((args[0].equalsIgnoreCase("remove") && hasDimensionPermission(player,"remove")) ||
-                    (args[0].equalsIgnoreCase("reset") && hasDimensionPermission(player,"reset"))) {
-                completions.addAll(customDimensions);
-            }
-        } else if (args.length == 3 && (args[0].equalsIgnoreCase("add") || args[0].equalsIgnoreCase("reset")) && hasDimensionPermission(player,"add")) {
-            File presetFolder = new File(plugin.getDataFolder(), "presets");
-            completions.add(String.valueOf(player.getWorld().getSeed()));
-            if (presetFolder.exists()) {
-                for (File file : Objects.requireNonNull(presetFolder.listFiles())) {
-                    if (file.isDirectory()) completions.add(file.getName());
+        if (args.length == 1) {
+            if (hasDimensionPermission(player, "add")) out.add("add");
+            if (hasDimensionPermission(player, "remove")) out.add("remove");
+            if (hasDimensionPermission(player, "reset")) out.add("reset");
+            if (hasDimensionPermission(player, "teleport")) out.add("teleport");
+            if (hasDimensionPermission(player, "list")) out.add("list");
+
+            return filterByPrefix(out, args[0]);
+        }
+
+        String sub = args[0].toLowerCase(Locale.ROOT);
+
+        switch (sub) {
+            case "remove", "reset" -> {
+                if (args.length == 2) {
+                    out.addAll(customDimensions);
+                    return filterByPrefix(out, args[1]);
+                }
+
+                if (args.length == 3) {
+                    out.add(String.valueOf(randomSeed()));
+                    addPresetFolderNames(out);
+                    return filterByPrefix(out, args[2]);
                 }
             }
-        } else if (args[0].equalsIgnoreCase("teleport") && hasDimensionPermission(player,"teleport")) {
-            Entity entity = (Entity) sender;
-            int x = (int) entity.getLocation().getX();
-            int y = (int) entity.getLocation().getY();
-            int z = (int) entity.getLocation().getZ();
-            switch (args.length) {
-                case 2 -> Bukkit.getOnlinePlayers().forEach(p -> completions.add(p.getName()));
-                case 3 -> completions.addAll(customDimensions);
-                case 4 -> completions.add(x + " " + y + " " + z);
-                case 5 -> completions.add(y + " " + z);
-                case 6 -> completions.add(String.valueOf(z));
-                case 7 -> completions.addAll(Arrays.asList("north", "south", "west", "east"));
+
+            case "add" -> {
+                if (args.length == 3) {
+                    out.add(String.valueOf(randomSeed()));
+                    addPresetFolderNames(out);
+                    return filterByPrefix(out, args[2]);
+                }
+            }
+
+            case "teleport" -> {
+                if (args.length == 2) {
+                    Bukkit.getOnlinePlayers().forEach(p -> out.add(p.getName()));
+                    return filterByPrefix(out, args[1]);
+                }
+
+                if (args.length == 3) {
+                    out.addAll(customDimensions);
+                    return filterByPrefix(out, args[2]);
+                }
+
+                if (args.length == 7) {
+                    out.addAll(List.of("north", "south", "west", "east"));
+                    return filterByPrefix(out, args[6]);
+                }
             }
         }
 
-        return completions;
+        return out;
     }
 
+    private void addPresetFolderNames(List<String> out) {
+        File folder = new File(plugin.getDataFolder(), "presets");
+        File[] children = folder.listFiles(File::isDirectory);
+
+        if (children == null) {
+            return;
+        }
+
+        for (File child : children) {
+            out.add(child.getName());
+        }
+    }
+
+    private List<String> filterByPrefix(List<String> values, String prefix) {
+        String lower = prefix.toLowerCase(Locale.ROOT);
+
+        return values.stream()
+                .distinct()
+                .filter(v -> v.toLowerCase(Locale.ROOT).startsWith(lower))
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .collect(Collectors.toList());
+    }
 }

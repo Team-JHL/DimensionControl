@@ -1,7 +1,7 @@
 name: DimensionControl
-version: '1.0.3'
+version: '1.1.0'
 main: de.jakomi1.dimensionControl.DimensionControl
-api-version: '1.21'
+api-version: '26.1.2'
 folia-supported: false
 commands:
   dimension:
