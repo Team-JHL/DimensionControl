@@ -1,0 +1,28 @@
+messages:
+  usage:
+    general: "Usage: /dimension <add/remove/teleport/list/reset> <name> [preset] [direction]"
+    add: "Usage: /dimension add <name> [preset]"
+    remove: "Usage: /dimension remove <name>"
+    reset: "Usage: /dimension reset <name> [preset]"
+    teleport: "Usage: /dimension teleport <player> <dimension> [x y z] [direction]"
+  error:
+    no_perm: "You do not have permission to execute this command."
+    unknown_action: "Unknown command. Available: add, remove, teleport, list, reset."
+    dim_exists: "Dimension '{0}' already exists."
+    preset_not_found: "Preset '{0}' not found. Creating empty world."
+    copy_error: "Error copying preset: {0}"
+    world_create_fail: "Error creating world '{0}'."
+    dim_not_loaded: "Dimension '{0}' does not exist or is not loaded."
+    invalid_coords: "Invalid coordinates. Please provide valid numbers for x, y and z."
+    invalid_direction: "Invalid direction. Available: north, south, west, east."
+  success:
+    teleport: "a '{0}' a."
+    add: "Dimension '{0}' has been created."
+    remove: "Dimension '{0}' has been removed."
+    list_empty: "No custom dimensions found."
+    preset_applied: "Preset '{0}' applied successfully."
+    list: "Available dimensions: {0}"
+    seed_applied: "Used Seed {0}."
+  warn:
+    teleported_player: "You have been teleported back to the Overworld from the removed dimension '{0}'."
+    wait: "Creating world (this may take a moment)..."

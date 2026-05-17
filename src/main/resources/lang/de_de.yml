@@ -1,0 +1,28 @@
+messages:
+  usage:
+    general: "Verwendung: /dimension <add/remove/teleport/list/reset> <name> [preset] [richtung]"
+    add: "Verwendung: /dimension add <name> [preset]"
+    remove: "Verwendung: /dimension remove <name>"
+    reset: "Verwendung: /dimension reset <name> [preset]"
+    teleport: "Verwendung: /dimension teleport <player> <dimension> [x y z] [richtung]"
+  error:
+    no_perm: "Du hast keine Berechtigung, diesen Befehl auszuführen."
+    unknown_action: "Unbekannter Befehl. Nutzbar: add, remove, teleport, list, reset."
+    dim_exists: "Die Dimension '{0}' existiert bereits."
+    preset_not_found: "Preset '{0}' nicht gefunden. Es wird eine leere Welt erstellt."
+    copy_error: "Fehler beim Kopieren des Presets: {0}"
+    world_create_fail: "Fehler beim Erstellen der Welt '{0}'."
+    dim_not_loaded: "Die Dimension '{0}' existiert nicht oder ist nicht geladen."
+    invalid_coords: "Ungültige Koordinaten. Bitte gebe gültige Zahlen für x, y und z ein."
+    invalid_direction: "Ungültige Richtung. Verfügbare Richtungen: north, south, west, east."
+  success:
+    list_empty: "Es wurden keine benutzerdefinierten Dimensionen gefunden."
+    add: "Dimension '{0}' wurde erstellt."
+    remove: "Dimension '{0}' wurde entfernt."
+    seed_applied: "Seed {0} angewendet."
+    preset_applied: "Preset '{0}' wurde übernommen."
+    list: "Vorhandene Dimensionen: {0}"
+    teleport: "Du wurdest aus der entfernten Dimension '{0}' zurück in die Oberwelt teleportiert."
+  warn:
+    teleported_player: "Du wurdest aus der entfernten Dimension '{0}'\nzurück in die Oberwelt teleportiert."
+    wait: "Erstelle welt (Kann einen Moment dauern)..."

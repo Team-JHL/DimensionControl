@@ -1,0 +1,28 @@
+messages:
+  usage:
+    general: "Utilizzo: /dimension <add/remove/teleport/list/reset> <nome> [preset] [direzione]"
+    add: "Utilizzo: /dimension add <nome> [preset]"
+    remove: "Utilizzo: /dimension remove <nome>"
+    reset: "Utilizzo: /dimension reset <nome> [preset]"
+    teleport: "Utilizzo: /dimension teleport <giocatore> <dimensione> [x y z] [direzione]"
+  error:
+    no_perm: "Non hai il permesso di eseguire questo comando."
+    unknown_action: "Comando sconosciuto. Disponibili: add, remove, teleport, list, reset."
+    dim_exists: "La dimensione '{0}' esiste già."
+    preset_not_found: "Preset '{0}' non trovato. Creazione di un mondo vuoto."
+    copy_error: "Errore durante la copia del preset: {0}"
+    world_create_fail: "Errore nella creazione del mondo '{0}'."
+    dim_not_loaded: "La dimensione '{0}' non esiste o non è caricata."
+    invalid_coords: "Coordinate non valide. Fornisci numeri validi per x, y e z."
+    invalid_direction: "Direzione non valida. Disponibili: north, south, west, east."
+  success:
+    teleport: "Teletrasportato a '{0}'."
+    add: "La dimensione '{0}' è stata creata."
+    remove: "La dimensione '{0}' è stata rimossa."
+    list_empty: "Nessuna dimensione personalizzata trovata."
+    preset_applied: "Preset '{0}' applicato con successo."
+    list: "Dimensioni disponibili: {0}"
+    seed_applied: "Seed utilizzato: {0}."
+  warn:
+    teleported_player: "Sei stato teletrasportato dal mondo rimosso '{0}' all'Overworld."
+    wait: "Creazione del mondo in corso (potrebbe volerci un momento)..."
