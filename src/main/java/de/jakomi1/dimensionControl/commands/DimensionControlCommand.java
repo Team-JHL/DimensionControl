@@ -138,13 +138,23 @@ public class DimensionControlCommand implements CommandExecutor, TabCompleter {
     private boolean addDimension(CommandSender sender, String dimensionName, String presetOrSeed) {
         String fullName = DIM_PREFIX + dimensionName;
 
-        if (Bukkit.getWorld(fullName) != null || dimensionExistsOnDisk(fullName)) {
-            sendFormatted(sender, NamedTextColor.YELLOW, "messages.error.dim_exists", fullName);
+        if (dimensionName == null || !dimensionName.matches("[a-zA-Z0-9]+")) {
+            sendFormatted(sender, NamedTextColor.RED,
+                    "messages.error.invalid_dim_name",
+                    dimensionName);
             return false;
+        }
+
+        if (Bukkit.getWorld(fullName) != null || dimensionExistsOnDisk(fullName)) {
+            sendFormatted(sender, NamedTextColor.YELLOW,
+                    "messages.error.dim_exists",
+                    fullName);
+            return true;
         }
 
         if (presetOrSeed == null || presetOrSeed.isBlank()) {
             long seed = randomSeed();
+
             WorldCreator creator = new WorldCreator(fullName)
                     .environment(World.Environment.NORMAL)
                     .seed(seed);
@@ -160,9 +170,22 @@ public class DimensionControlCommand implements CommandExecutor, TabCompleter {
                     .environment(World.Environment.NORMAL)
                     .seed(explicitSeed);
 
-            sendFormatted(sender, NamedTextColor.GREEN, "messages.success.seed_applied", String.valueOf(explicitSeed));
+            sendFormatted(sender, NamedTextColor.GREEN,
+                    "messages.success.seed_applied",
+                    String.valueOf(explicitSeed));
+
             sendFormatted(sender, NamedTextColor.GREEN, "messages.warn.wait");
+
             createWorldSync(sender, creator, fullName, null);
+            return true;
+        }
+
+        Path presetRoot = DimensionControl.dimensionUtils.resolvePresetFolderSync(presetOrSeed);
+
+        if (presetRoot == null) {
+            sendFormatted(sender, NamedTextColor.YELLOW,
+                    "messages.error.preset_not_found",
+                    presetOrSeed);
             return true;
         }
 
@@ -171,10 +194,15 @@ public class DimensionControlCommand implements CommandExecutor, TabCompleter {
         DimensionControl.dimensionUtils
                 .importPresetAsync(presetOrSeed, fullName)
                 .whenComplete((result, throwable) -> {
+
                     if (throwable != null) {
                         Bukkit.getScheduler().runTask(plugin, () -> {
-                            plugin.getLogger().warning("Preset import failed: " + throwable.getMessage());
-                            sendFormatted(sender, NamedTextColor.RED, "messages.error.copy_error", throwable.getMessage());
+                            plugin.getLogger().warning(
+                                    "Preset import failed: " + throwable.getMessage());
+
+                            sendFormatted(sender, NamedTextColor.RED,
+                                    "messages.error.copy_error",
+                                    throwable.getMessage());
                         });
                         return;
                     }
@@ -185,9 +213,14 @@ public class DimensionControlCommand implements CommandExecutor, TabCompleter {
                                     .createCreatorFromPreset(fullName, result.metadata());
 
                             createWorldSync(sender, creator, fullName, result.metadata());
+
                         } catch (Exception ex) {
-                            plugin.getLogger().warning("Failed to create preset world '" + fullName + "': " + ex.getMessage());
-                            sendFormatted(sender, NamedTextColor.RED, "messages.error.world_create_fail", fullName);
+                            plugin.getLogger().warning(
+                                    "Failed to create preset world '" + fullName + "': " + ex.getMessage());
+
+                            sendFormatted(sender, NamedTextColor.RED,
+                                    "messages.error.world_create_fail",
+                                    fullName);
                         }
                     });
                 });
@@ -607,7 +640,7 @@ public class DimensionControlCommand implements CommandExecutor, TabCompleter {
                     return filterByPrefix(out, args[1]);
                 }
 
-                if (args.length == 3) {
+                if (args.length == 3 && sub.equals("reset")) {
                     out.add(String.valueOf(randomSeed()));
                     addPresetFolderNames(out);
                     return filterByPrefix(out, args[2]);

@@ -34,9 +34,8 @@ public final class DimensionControl extends JavaPlugin {
         getDataFolder().mkdirs();
         saveDefaultConfig();
 
-        saveResource("lang/en_us.yml", false);
-        saveResource("lang/de_de.yml", false);
-
+        saveResource("lang/en_us.yml", true);
+        saveResource("lang/de_de.yml", true);
         loadLanguage();
 
         dimensionUtils = new DimensionUtils(this);
@@ -46,6 +45,7 @@ public final class DimensionControl extends JavaPlugin {
                 new CommandUtils.CommandData("dimension", dimensionCommand, dimensionCommand)
         );
 
+        dimensionUtils.syncPluginPresets();
         scheduler.global().runDelayed(this::loadWorlds, 1L);
         scheduler.global().runAtFixedRate(this::backupWorlds, 20L * 60 * 5, 20L * 60 * 2);
 
@@ -110,4 +110,6 @@ public final class DimensionControl extends JavaPlugin {
             world.save();
         }
     }
+
+
 }

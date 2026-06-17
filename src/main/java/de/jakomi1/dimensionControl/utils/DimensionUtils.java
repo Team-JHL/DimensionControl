@@ -52,13 +52,102 @@ public final class DimensionUtils {
         });
     }
 
+    public void syncPluginPresets() {
+        Path presetRoot = plugin.getDataFolder().toPath().resolve("presets");
+
+        try {
+            Files.createDirectories(presetRoot);
+
+            Path pluginPath = Path.of(
+                    plugin.getClass()
+                            .getProtectionDomain()
+                            .getCodeSource()
+                            .getLocation()
+                            .toURI()
+            );
+
+            if (!Files.isRegularFile(pluginPath)) {
+                return;
+            }
+
+            try (var jar = new java.util.jar.JarFile(pluginPath.toFile())) {
+
+                var entries = jar.entries();
+
+                while (entries.hasMoreElements()) {
+                    var entry = entries.nextElement();
+
+                    if (entry.isDirectory() || !entry.getName().startsWith("presets/")) {
+                        continue;
+                    }
+
+                    String relative = entry.getName().substring("presets/".length());
+
+                    Path out = presetRoot.resolve(relative);
+                    Files.createDirectories(out.getParent());
+
+                    try (InputStream in = plugin.getResource(entry.getName().substring("presets/".length()))) {
+                        if (in == null) {
+                            continue;
+                        }
+                        Files.copy(in, out, StandardCopyOption.REPLACE_EXISTING);
+                    }
+                }
+            }
+
+        } catch (Exception ex) {
+            plugin.getLogger().warning("Failed syncing plugin presets: " + ex.getMessage());
+        }
+    }
+
     public List<String> getCustomDimensions() {
-        TreeSet<String> names = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        TreeSet<String> names = new TreeSet<>();
 
         scanLegacyWorldFolders(names);
         scanMigratedWorldFolders(names);
 
+        Bukkit.getWorlds().stream()
+                .map(World::getName)
+                .filter(name -> name.startsWith(DIMENSION_PREFIX))
+                .map(name -> name.substring(DIMENSION_PREFIX.length()))
+                .forEach(names::add);
+
         return new ArrayList<>(names);
+    }
+
+
+    public Path resolvePresetFolderSync(String presetName) {
+        if (presetName == null || presetName.isBlank()) {
+            return null;
+        }
+
+        try {
+            Path presetsRoot = plugin.getDataFolder().toPath().resolve("presets");
+
+            if (!Files.isDirectory(presetsRoot)) {
+                return null;
+            }
+
+            Path exact = presetsRoot.resolve(presetName);
+            if (Files.isDirectory(exact)) {
+                return exact;
+            }
+
+            try (Stream<Path> stream = Files.list(presetsRoot)) {
+                return stream
+                        .filter(Files::isDirectory)
+                        .filter(path ->
+                                path.getFileName()
+                                        .toString()
+                                        .equalsIgnoreCase(presetName))
+                        .findFirst()
+                        .orElse(null);
+            }
+
+        } catch (IOException ex) {
+            plugin.getLogger().warning("Failed to resolve preset folder: " + presetName);
+            return null;
+        }
     }
 
     public CompletableFuture<List<String>> getCustomDimensionsAsync() {
