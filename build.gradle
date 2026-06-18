@@ -8,7 +8,7 @@ plugins {
 }
 
 group = 'de.jakomi1'
-version = '1.1.1'
+version = '1.1.2'
 
 repositories {
     mavenCentral()
@@ -27,6 +27,7 @@ repositories {
 dependencies {
     paperweight.paperDevBundle("26.1.2.build.+")
     implementation("com.cjcrafter:foliascheduler:0.8.0")
+    implementation("org.bstats:bstats-bukkit:3.2.1")
 }
 
 tasks {
@@ -41,15 +42,18 @@ java {
     }
 }
 
-tasks.named("shadowJar", ShadowJar) {
+shadowJar {
     archiveClassifier.set("")
 
     mergeServiceFiles()
 
-    relocate(
-            "com.cjcrafter.foliascheduler",
-            "de.jakomi1.dimensioncontrol.libs.foliascheduler"
-    )
+    configurations = [project.configurations.runtimeClasspath]
+
+    relocate("com.cjcrafter.foliascheduler",
+            "de.jakomi1.dimensioncontrol.libs.foliascheduler")
+
+    relocate("org.bstats",
+            "de.jakomi1.dimensioncontrol.libs.bstats")
 }
 
 tasks.build {

@@ -5,6 +5,7 @@ import com.cjcrafter.foliascheduler.bukkit.BukkitServer;
 import de.jakomi1.dimensionControl.commands.DimensionControlCommand;
 import de.jakomi1.dimensionControl.utils.CommandUtils;
 import de.jakomi1.dimensionControl.utils.DimensionUtils;
+import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
@@ -30,7 +31,7 @@ public final class DimensionControl extends JavaPlugin {
     public void onEnable() {
         plugin = this;
         scheduler = new com.cjcrafter.foliascheduler.FoliaCompatibility(plugin).getServerImplementation();
-
+        new Metrics(this, 32078);
         getDataFolder().mkdirs();
         saveDefaultConfig();
 

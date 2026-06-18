@@ -1,11 +1,13 @@
 name: DimensionControl
-version: '1.1.1'
+version: '${version}'
 main: de.jakomi1.dimensionControl.DimensionControl
 api-version: '26.1.2'
 folia-supported: false
+
 commands:
   dimension:
     aliases: [dim]
+
 permissions:
   dimensioncontrol.dimension.add:
     default: op
