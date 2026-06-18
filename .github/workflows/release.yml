@@ -33,29 +33,33 @@ jobs:
         id: jar
         run: echo "JAR=$(ls build/libs/*.jar | head -n 1)" >> $GITHUB_OUTPUT
 
-      # 🔥 VERSION AUS CHANGELOG.md (OBERSTE VERSION)
       - name: Extract version from CHANGELOG
         id: vars
         run: |
           VERSION=$(grep -m1 '^## ' CHANGELOG.md | sed 's/^## //')
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
-      # 📝 Nur oberster Changelog-Block
       - name: Extract changelog section
         id: changelog
         run: |
           awk '
-            /^## / { if (seen++) exit }
-            { gsub(/\\##/, "##"); print }
+            BEGIN { printing = 0 }
+            /^##[[:space:]]/ {
+              if (printing == 1) exit
+              printing = 1
+              next
+            }
+            printing == 1 { print }
           ' CHANGELOG.md > changelog.txt
+
+          sed -i 's/^\\//' changelog.txt
 
           cat changelog.txt
 
           echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
-          printf "%s\n" "$(cat changelog.txt)" >> $GITHUB_OUTPUT
+          cat changelog.txt >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      # 🔥 RELEASE (Modrinth + CurseForge)
       - name: Publish Modrinth + CurseForge
         uses: Kir-Antipov/mc-publish@v3
         with:
@@ -74,8 +78,6 @@ jobs:
 
           loaders: |
             paper
-            spigot
-            bukkit
             purpur
 
           game-versions: |
