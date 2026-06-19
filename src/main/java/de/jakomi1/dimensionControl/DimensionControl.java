@@ -5,6 +5,8 @@ import com.cjcrafter.foliascheduler.bukkit.BukkitServer;
 import de.jakomi1.dimensionControl.commands.DimensionControlCommand;
 import de.jakomi1.dimensionControl.utils.CommandUtils;
 import de.jakomi1.dimensionControl.utils.DimensionUtils;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
@@ -26,7 +28,7 @@ public final class DimensionControl extends JavaPlugin {
     public static List<CommandUtils.CommandData> commands;
     public static DimensionControl plugin;
     public static ServerImplementation scheduler;
-
+    public static final Component chatPrefix = Component.text("[", NamedTextColor.GRAY).append(Component.text("DC", NamedTextColor.GREEN)).append(Component.text("] ", NamedTextColor.GRAY));
     @Override
     public void onEnable() {
         plugin = this;

@@ -40,6 +40,8 @@ import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
+import static de.jakomi1.dimensionControl.DimensionControl.chatPrefix;
+
 public class DimensionControlCommand implements CommandExecutor, TabCompleter {
 
     private static final String DIM_PREFIX = "CDim-";
@@ -159,7 +161,7 @@ public class DimensionControlCommand implements CommandExecutor, TabCompleter {
                     .environment(World.Environment.NORMAL)
                     .seed(seed);
 
-            sendFormatted(sender, NamedTextColor.GREEN, "messages.warn.wait");
+            sendFormatted(sender, NamedTextColor.GRAY, "messages.warn.wait");
             createWorldSync(sender, creator, fullName, null);
             return true;
         }
@@ -170,11 +172,11 @@ public class DimensionControlCommand implements CommandExecutor, TabCompleter {
                     .environment(World.Environment.NORMAL)
                     .seed(explicitSeed);
 
-            sendFormatted(sender, NamedTextColor.GREEN,
+            sendFormatted(sender, NamedTextColor.GRAY,
                     "messages.success.seed_applied",
                     String.valueOf(explicitSeed));
 
-            sendFormatted(sender, NamedTextColor.GREEN, "messages.warn.wait");
+            sendFormatted(sender, NamedTextColor.GRAY, "messages.warn.wait");
 
             createWorldSync(sender, creator, fullName, null);
             return true;
@@ -183,13 +185,13 @@ public class DimensionControlCommand implements CommandExecutor, TabCompleter {
         Path presetRoot = DimensionControl.dimensionUtils.resolvePresetFolderSync(presetOrSeed);
 
         if (presetRoot == null) {
-            sendFormatted(sender, NamedTextColor.YELLOW,
+            sendFormatted(sender, NamedTextColor.RED,
                     "messages.error.preset_not_found",
                     presetOrSeed);
             return true;
         }
 
-        sendFormatted(sender, NamedTextColor.GREEN, "messages.warn.wait");
+        sendFormatted(sender, NamedTextColor.GRAY, "messages.warn.wait");
 
         DimensionControl.dimensionUtils
                 .importPresetAsync(presetOrSeed, fullName)
@@ -249,7 +251,7 @@ public class DimensionControlCommand implements CommandExecutor, TabCompleter {
             }
 
             refreshCustomDimensions();
-            sendFormatted(sender, NamedTextColor.GREEN, "messages.success.add", fullName);
+            sendFormatted(sender, NamedTextColor.GRAY, "messages.success.add", fullName);
         } catch (Exception ex) {
             plugin.getLogger().warning("Failed to create world '" + fullName + "': " + ex.getMessage());
             sendFormatted(sender, NamedTextColor.RED, "messages.error.world_create_fail", fullName);
@@ -279,7 +281,7 @@ public class DimensionControlCommand implements CommandExecutor, TabCompleter {
 
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     refreshCustomDimensions();
-                    sendFormatted(sender, NamedTextColor.GREEN, "messages.success.remove", fullName);
+                    sendFormatted(sender, NamedTextColor.GRAY, "messages.success.remove", fullName);
                 });
             } catch (Exception ex) {
                 Bukkit.getScheduler().runTask(plugin, () ->
@@ -343,9 +345,9 @@ public class DimensionControlCommand implements CommandExecutor, TabCompleter {
 
     private boolean listDimensions(CommandSender sender) {
         if (customDimensions.isEmpty()) {
-            sendFormatted(sender, NamedTextColor.GREEN, "messages.success.list_empty");
+            sendFormatted(sender, NamedTextColor.GRAY, "messages.success.list_empty");
         } else {
-            sendFormatted(sender, NamedTextColor.GREEN, "messages.success.list", String.join(", ", customDimensions));
+            sendFormatted(sender, NamedTextColor.GRAY, "messages.success.list", String.join(", ", customDimensions));
         }
         return true;
     }
@@ -581,7 +583,7 @@ public class DimensionControlCommand implements CommandExecutor, TabCompleter {
     }
 
     private void sendFormatted(CommandSender sender, NamedTextColor color, String key, String... args) {
-        sender.sendMessage(Component.text(format(key, args)).color(color));
+        sender.sendMessage(chatPrefix.append(Component.text(format(key, args)).color(color)));
     }
 
     private String format(String key, String... args) {
