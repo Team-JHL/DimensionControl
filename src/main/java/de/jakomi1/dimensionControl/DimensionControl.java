@@ -5,6 +5,7 @@ import com.cjcrafter.foliascheduler.bukkit.BukkitServer;
 import de.jakomi1.dimensionControl.commands.DimensionControlCommand;
 import de.jakomi1.dimensionControl.utils.CommandUtils;
 import de.jakomi1.dimensionControl.utils.DimensionUtils;
+import dev.faststats.bukkit.BukkitContext;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bstats.bukkit.Metrics;
@@ -21,7 +22,9 @@ import java.util.List;
 import java.util.Map;
 
 public final class DimensionControl extends JavaPlugin {
-
+    private final BukkitContext context = new BukkitContext.Factory(this, "75404d5e6f74c65c3534f1b2514ea253")
+            .metrics(dev.faststats.Metrics.Factory::create)
+            .create();
     public static DimensionUtils dimensionUtils;
     public static Map<String, String> messages;
     public static List<Listener> listeners = List.of();
@@ -33,7 +36,10 @@ public final class DimensionControl extends JavaPlugin {
     public void onEnable() {
         plugin = this;
         scheduler = new com.cjcrafter.foliascheduler.FoliaCompatibility(plugin).getServerImplementation();
+
         new Metrics(this, 32078);
+        context.ready();
+
         getDataFolder().mkdirs();
         saveDefaultConfig();
 
@@ -54,6 +60,11 @@ public final class DimensionControl extends JavaPlugin {
 
         registerAllListener();
         registerAllCommands();
+    }
+
+    @Override
+    public void onDisable() {
+        context.shutdown();
     }
 
     private void loadLanguage() {
