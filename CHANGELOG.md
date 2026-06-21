@@ -1,3 +1,7 @@
+## 1.1.5
+- added auto description update
+- fixed package names
+
 ## 1.1.4
 - added fastStats support
 - updated autoRelease to Universal Plugin Release

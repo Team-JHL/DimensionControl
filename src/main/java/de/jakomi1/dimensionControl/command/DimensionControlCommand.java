@@ -1,7 +1,7 @@
-package de.jakomi1.dimensionControl.commands;
+package de.jakomi1.dimensionControl.command;
 
 import de.jakomi1.dimensionControl.DimensionControl;
-import de.jakomi1.dimensionControl.utils.DimensionUtils;
+import de.jakomi1.dimensionControl.util.DimensionUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -19,7 +19,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;

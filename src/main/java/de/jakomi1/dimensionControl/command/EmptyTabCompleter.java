@@ -1,4 +1,4 @@
-package de.jakomi1.dimensionControl.commands;
+package de.jakomi1.dimensionControl.command;
 
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;

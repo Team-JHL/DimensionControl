@@ -1,10 +1,9 @@
 package de.jakomi1.dimensionControl;
 
 import com.cjcrafter.foliascheduler.ServerImplementation;
-import com.cjcrafter.foliascheduler.bukkit.BukkitServer;
-import de.jakomi1.dimensionControl.commands.DimensionControlCommand;
-import de.jakomi1.dimensionControl.utils.CommandUtils;
-import de.jakomi1.dimensionControl.utils.DimensionUtils;
+import de.jakomi1.dimensionControl.command.DimensionControlCommand;
+import de.jakomi1.dimensionControl.util.CommandUtils;
+import de.jakomi1.dimensionControl.util.DimensionUtils;
 import dev.faststats.bukkit.BukkitContext;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;

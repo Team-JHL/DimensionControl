@@ -1,4 +1,4 @@
-package de.jakomi1.dimensionControl.utils;
+package de.jakomi1.dimensionControl.util;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Difficulty;

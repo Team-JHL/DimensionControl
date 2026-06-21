@@ -1,0 +1,84 @@
+<h2>🌌 DimensionControl – Effortless Custom Dimensions in Minecraft!</h2>
+<i>DimensionControl</i> is a powerful yet lightweight Paper plugin that allows server admins to <b>create, manage, and remove custom dimensions (worlds) within seconds</b> – all through intuitive commands. No complicated setup, no manual file copying – just seamless world control at your fingertips.
+
+<h3>🚀 Key Features</h3>
+<ul>
+    <li>📦 <b>One-Command Creation</b><br>
+        Create fully working custom dimensions with a single command: <code>/dimension add &lt;name&gt; [seed|preset]</code>. You can either provide a <b>Minecraft seed</b> for procedural generation or specify a <b>preset</b> (folder from <code>presets/</code>) to clone an existing world structure.
+    </li>
+    <li>🗑️ <b>Safe Dimension Removal</b><br>
+        Remove dimensions via <code>/dimension remove &lt;name&gt;</code>, automatically teleporting all players to the Overworld before deletion.
+    </li>
+    <li>🌍 <b>Automatic World Loading</b><br>
+        All created dimensions load automatically on server startup.
+    </li>
+    <li>🛡️ <b>Auto World Backup</b><br>
+        Worlds are periodically saved and backed up to prevent data loss.
+    </li>
+    <li>🗺️ <b>Seed- or Preset-Based Generation</b><br>
+        Choose between generating new worlds with a <b>custom seed</b> or duplicating an existing <b>preset</b> from the <code>presets/</code> folder. Both options are equally easy to use. (Newest versions allow using Zip files!)
+    </li>
+    <li>🌐 <b>Multi-Language Support</b><br>
+        Fully localized via editable YAML files – includes <code>en_us.yml</code> and <code>de_de.yml</code>.
+    </li>
+    <li>🛡️ <b>Permissions System</b><br>
+        Each <code>/dimension</code> subcommand has its own permission:
+        <ul>
+            <li><code>dimensioncontrol.dimension.add</code> – default: OP</li>
+            <li><code>dimensioncontrol.dimension.remove</code> – default: OP</li>
+            <li><code>dimensioncontrol.dimension.reset</code> – default: OP</li>
+            <li><code>dimensioncontrol.dimension.teleport</code> – default: OP</li>
+            <li><code>dimensioncontrol.dimension.list</code> – default: OP</li>
+            <li><code>dimensioncontrol.dimension.*</code> – default: OP (grants all subcommand permissions)</li>
+        </ul>
+    </li>
+    <li>⚡ <b>Alias Command</b><br>
+        Use <code>/dim</code> as a shortcut for <code>/dimension</code> for faster access.
+    </li>
+</ul>
+
+<h3>🐛 Fixed</h3>
+<ul>
+    <li>Fixed a crash that occurred when the plugin was started for the first time (v1.0.1 issue).</li>
+</ul>
+
+<h3>🧭 Commands</h3>
+<pre><code>/dimension add &lt;name&gt; [seed|preset]</code></pre>
+➤ Creates a new dimension. You can provide a seed for world generation or a preset name to copy a custom world template.
+
+<pre><code>/dimension remove &lt;name&gt;</code></pre>
+➤ Unloads and deletes the dimension after safely teleporting players.
+
+<pre><code>/dimension list</code></pre>
+➤ Lists all custom dimensions managed by the plugin.
+
+<h3>🔧 Configuration</h3>
+<b>Localization:</b><br>
+Set the language via the <code>locale</code> option in <code>config.yml</code> (e.g., <code>en_us</code>, <code>de_de</code>).<br><br>
+
+<b>Presets:</b><br>
+Drop custom world folders into the <code>presets/</code> directory. These can be cloned instantly using the <code>/dimension add</code> command.
+
+<h3>📁 File Structure</h3>
+<pre><code>/plugins/DimensionControl/
+├── presets/
+│   ├── template2.zip
+│   └── my-custom-template/
+├── lang/
+│   ├── en_us.yml
+│   └── de_de.yml
+└── config.yml
+</code></pre>
+
+<h3>💡 Use Case Examples</h3>
+<ul>
+    <li>Create a mini adventure world for events in seconds.</li>
+    <li>Allow players to explore isolated realms with controlled seeds.</li>
+    <li>Quickly spin up a predefined world layout using a preset folder.</li>
+    <li>Periodically generate new custom worlds for creative builds.</li>
+</ul>
+<h3>❓ Questions?</h3>
+<ul>
+    <li><b>Discord:</b> <a href="https://discord.gg/2rkPqrnBC5">https://discord.gg/2rkPqrnBC5</a></li>
+    <li><b>Author:</b> Jakomi1</li>
+</ul>

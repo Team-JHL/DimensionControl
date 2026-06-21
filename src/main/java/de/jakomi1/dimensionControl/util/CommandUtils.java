@@ -1,6 +1,6 @@
-package de.jakomi1.dimensionControl.utils;
+package de.jakomi1.dimensionControl.util;
 
-import de.jakomi1.dimensionControl.commands.EmptyTabCompleter;
+import de.jakomi1.dimensionControl.command.EmptyTabCompleter;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.command.TabCompleter;
